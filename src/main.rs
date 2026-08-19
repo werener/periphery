@@ -1,8 +1,10 @@
-use lang::ast::lexer::*;
+use lang::lexer::lexer::*;
+use log::{debug, info};
+
 
 fn main() {
-    let mut lexer = Lexer::new("12 + 3 * 4");
-    while let Some(token) = lexer.next_token() {
-        println!("{:?}",token.kind);
-    }
+    env_logger::init();
+
+    let tokens = tokenize("[{ [) (");
+    println!("{:?}", tokens)
 }
