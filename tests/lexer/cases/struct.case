@@ -11,10 +11,8 @@ let coords = Coords {
     y: 13,
 };
 let x, _ = coords.get_point()
-
 EXPECTED:
 [
-
 "Struct", {"Identifier": "Coords"}, "LeftCurly", 
 {"Identifier": "x"}, "Colon", "Int", "Comma", 
 {"Identifier": "y"}, "Colon", "Int", "Comma",
@@ -28,5 +26,4 @@ EXPECTED:
 {"Identifier": "y"}, "Colon", {"Integer": 13}, "Comma",
 "RightCurly",  "Semicolon",
 "Let", {"Identifier": "x"}, "Comma", {"Identifier": "_"}, "Assign", {"Identifier": "coords"}, "Dot", {"Identifier": "get_point"}, "LeftParen", "RightParen"
-
 ]
