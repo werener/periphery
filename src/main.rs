@@ -1,10 +1,8 @@
 use lang::lexer::lexer::*;
-use log::{debug, info};
-
 
 fn main() {
     env_logger::init();
 
-    let tokens = tokenize("[{ [) (");
+    let tokens = tokenize("hello_world");
     println!("{:?}", tokens)
 }

@@ -1,50 +1,9 @@
-use regex::Regex;
-use handlers::*;
-/// TokenKind represents the type of a token.
+/// Token represents a single token.
 ///
-/// The order, in which these kinds are placed is the same order,
+/// The order, in which these variants are placed is the same order,
 /// in which the lexer tries to match them to their corresponding regex pattern.
-#[derive(Debug, Clone, Copy, PartialEq, strum_macros::EnumIter)]
-pub enum TokenKind {
-    Number(i32),
-    String,
-    Identifier,
-
-    WhiteSpace,
-    Eof,
-
-    Equals,
-    NotEquals,
-    Less,
-    LessOrEquals,
-    Greater,
-    GreaterOrEquals,
-
-    Or,
-    Not,
-    And,
-
-    Plus,
-    Minus,
-    Slash,
-    Asterisk,
-    Percent,
-
-    Dot,
-    Assign,
-
-    LeftBracket,
-    RightBracket,
-    LeftCurly,
-    RightCurly,
-    LeftParen,
-    RightParen,
-
-    Semicolon,
-    Colon,
-    Question,
-    Comma,
-
+#[derive(Debug, Clone, PartialEq, strum_macros::EnumIter)]
+pub enum Token {
     // Keywords
     Let,
     Const,
@@ -54,91 +13,171 @@ pub enum TokenKind {
     Else,
     For,
     While,
+
+    Integer(i64),
+    String(String),
+    Identifier(String),
+
+    /// spaces, \n, \t, \r, \f, \v
+    WhiteSpace,
+    /// automatically inserted at the end of provided input
+    Eof,
+
+    /// ==
+    Equals,
+    /// !=
+    NotEquals,
+    /// <=
+    LessOrEquals,
+    /// <
+    Less,
+    /// >=
+    GreaterOrEquals,
+    /// >
+    Greater,
+
+    /// ||
+    Or,
+    /// !
+    Not,
+    /// &&
+    And,
+
+    /// +
+    Plus,
+    /// -
+    Minus,
+    /// /
+    Slash,
+    /// *
+    Asterisk,
+    /// %
+    Percent,
+
+    /// ..=
+    ClosedInterval,
+    // ..
+    HalfInterval,
+    /// .
+    Dot,
+    /// =
+    Assign,
+
+    /// [
+    LeftBracket,
+    /// ]
+    RightBracket,
+    /// {
+    LeftCurly,
+    /// }
+    RightCurly,
+    /// (
+    LeftParen,
+    /// )
+    RightParen,
+
+    /// ;
+    Semicolon,
+    /// :
+    Colon,
+    /// ?
+    Question,
+    /// ,
+    Comma,
 }
 
-impl TokenKind {
-    /// Lookup table for regex expressions, matching all tokens of this kind.
-    fn get_regex(self) -> Regex {
-        use TokenKind::*;
-        let pattern = match self {
-            Number(_) => r"a^",
-            String => r"a^",
-            Identifier => r"a^",
+mod handlers {
 
-            Eof => r"a^",
-            WhiteSpace => r"\s+",
+    use super::Token;
+    use crate::{error::LexicalError::InvalidIntegerLiteral, lexer::lexer::Lexer};
 
-            Equals => r"a^",
-            NotEquals => r"a^",
-            Less => r"a^",
-            LessOrEquals => r"a^",
-            Greater => r"a^",
-            GreaterOrEquals => r"a^",
-            Or => r"a^",
-            Not => r"a^",
-            And => r"a^",
+    pub type MatchHandler = dyn Fn(&mut Lexer, regex::Match) -> crate::lexer::Result<()>;
 
-            Plus => r"a^",
-            Minus => r"a^",
-            Slash => r"a^",
-            Asterisk => r"a^",
-            Percent => r"a^",
-
-            Dot => r"a^",
-            Assign => r"a^",
-
-            LeftBracket => r"\[",
-            RightBracket => r"\]",
-            LeftCurly => r"\{",
-            RightCurly => r"\}",
-            LeftParen => r"\(",
-            RightParen => r"\)",
-
-            Semicolon => r"a^",
-            Colon => r"a^",
-            Question => r"a^",
-            Comma => r"a^",
-            Let => r"a^",
-            Const => r"a^",
-            Fn => r"a^",
-            Struct => r"a^",
-            If => r"a^",
-            Else => r"a^",
-            For => r"a^",
-            While => r"a^",
-        };
-
-        Regex::new(pattern).expect(&format!("WRONG REGEX LOOKUP TABLE FOR {:?}", self))
+    fn default_handler(token: Token) -> Box<MatchHandler> {
+        Box::new(move |lexer, matched| {
+            log::debug!("Handling token '{:?}'", token);
+            lexer.consume(token.clone(), matched);
+            Ok(())
+        })
     }
 
-    
-    /// Lookup table for handler, that defines how this kind of token is in the input stream.
-    fn get_handler(self) -> Box<MatchHandler> {
-        use TokenKind::*;
-        match self {
-            WhiteSpace => skip_handler(),
-            _ => default_handler(self),
+    fn skip_handler() -> Box<MatchHandler> {
+        Box::new(move |lexer, matched| {
+            lexer.advance(matched.len());
+            Ok(())
+        })
+    }
+
+    fn integer_handler() -> Box<MatchHandler> {
+        Box::new(move |lexer, matched| {
+            log::debug!("Handling integer: {}", matched.as_str());
+
+            let mut s = matched.as_str();
+            let is_negative = s.starts_with('-');
+            s = if is_negative { &s[1..] } else { s };
+
+            let radix = match s.get(0..2) {
+                Some("0b") => 2,
+                Some("0o") => 8,
+                Some("0x") => 16,
+                _ => 10,
+            };
+            if radix != 10 {
+                s = &s[2..]
+            }
+
+            log::debug!(
+                "Identified it as: {}, base {}, digits: {}",
+                if is_negative { "negative" } else { "positive" },
+                radix,
+                s
+            );
+
+            let mut num: i64 = 0;
+            for digit in s.chars() {
+                if digit == '_' {
+                    continue;
+                }
+                let digit = digit.to_digit(radix).ok_or_else(|| {
+                    InvalidIntegerLiteral(matched.as_str().to_string(), digit, radix)
+                })?;
+
+                num = num.wrapping_mul(radix as i64).wrapping_add(digit as i64);
+            }
+            num = if is_negative { num.wrapping_neg() } else { num };
+
+            lexer.consume(Token::Integer(num), matched);
+            Ok(())
+        })
+    }
+
+    fn identifier_handler() -> Box<MatchHandler> {
+        Box::new(move |lexer, matched| {
+            log::debug!("Handling identifier: {}", matched.as_str());
+            lexer.consume(Token::Identifier(matched.as_str().to_string()), matched);
+            Ok(())
+        })
+    }
+
+    impl Token {
+        /// Lookup table for handler, that defines how this kind of token is in the input stream.
+        pub(crate) fn get_handler(self) -> Box<MatchHandler> {
+            use Token::*;
+            match self {
+                WhiteSpace => skip_handler(),
+                Integer(_) => integer_handler(),
+                Identifier(_) => identifier_handler(),
+                _ => default_handler(self),
+            }
         }
     }
 }
 
-mod handlers {
-    use super::TokenKind;
-    use crate::lexer::lexer::Lexer;
-
-    pub type MatchHandler = dyn Fn(&mut Lexer, regex::Match);
-
-    pub fn default_handler(kind: TokenKind) -> Box<MatchHandler> {
-        Box::new(move |lexer, matched| lexer.consume(kind, matched))
-    }
-    pub fn skip_handler() -> Box<MatchHandler> {
-        Box::new(move |lexer, matched| lexer.advance(matched.end()))
-    }
-}
-
 pub mod patterns {
-    use super::TokenKind;
+
+    use super::Token;
     use crate::lexer::token::handlers::MatchHandler;
+    use regex::Regex;
 
     #[fully_pub::fully_pub]
     struct RegexPattern {
@@ -147,19 +186,78 @@ pub mod patterns {
     }
 
     impl RegexPattern {
-        fn from_kind(kind: TokenKind) -> Self {
+        fn from_kind(kind: Token) -> Self {
             RegexPattern {
-                handler: kind.get_handler(),
+                handler: kind.clone().get_handler(),
                 regex: kind.get_regex(),
             }
         }
     }
 
     #[inline]
-    pub fn all() -> Vec<RegexPattern> {
+    pub(crate) fn all() -> Vec<RegexPattern> {
         use strum::IntoEnumIterator;
-        let patterns = TokenKind::iter().map(RegexPattern::from_kind);
+        let patterns = Token::iter().map(RegexPattern::from_kind);
 
         patterns.collect()
+    }
+
+    impl Token {
+        /// Lookup table for regex expressions, matching all tokens of this kind.
+        pub fn get_regex(self) -> Regex {
+            use Token::*;
+            let pattern = match self {
+                Integer(_) => r"-?(?:(?:0[box])[0-9a-zA-Z_]+|[0-9_]+)",
+                String(_) => r#"a^"#,
+                Identifier(_) => r"[a-zA-Z_]{1}\w+",
+
+                Eof => r"a^",
+                WhiteSpace => r"\s+",
+
+                Equals => r"==",
+                NotEquals => r"!=",
+                Less => r"<",
+                LessOrEquals => r"<=",
+                Greater => r">",
+                GreaterOrEquals => r">=",
+                Or => r"\|\|",
+                Not => r"!",
+                And => r"&&",
+
+                Plus => r"\+",
+                Minus => r"-",
+                Slash => r"/",
+                Asterisk => r"\*",
+                Percent => r"%",
+
+                HalfInterval => r"\.\.",
+                ClosedInterval => r"\.\.=",
+                Dot => r"\.",
+                Assign => r"=",
+
+                LeftBracket => r"\[",
+                RightBracket => r"\]",
+                LeftCurly => r"\{",
+                RightCurly => r"\}",
+                LeftParen => r"\(",
+                RightParen => r"\)",
+
+                Semicolon => r";",
+                Colon => r":",
+                Question => r"\?",
+                Comma => r",",
+
+                Let => r"a^",
+                Const => r"a^",
+                Fn => r"a^",
+                Struct => r"a^",
+                If => r"a^",
+                Else => r"a^",
+                For => r"a^",
+                While => r"a^",
+            };
+
+            Regex::new(pattern).expect(&format!("CANNOT COMPILE REGEX FOR {:?}", self))
+        }
     }
 }
