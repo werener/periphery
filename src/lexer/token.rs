@@ -14,9 +14,9 @@ pub enum Token {
     For,
     While,
 
+    Identifier(String),
     Integer(i64),
     String(String),
-    Identifier(String),
 
     /// spaces, \n, \t, \r, \f, \v
     WhiteSpace,
@@ -207,9 +207,9 @@ pub mod patterns {
         pub fn get_regex(self) -> Regex {
             use Token::*;
             let pattern = match self {
-                Integer(_) => r"-?(?:(?:0[box])[0-9a-zA-Z_]+|[0-9_]+)",
+                Identifier(_) => r"[a-zA-Z_]{1}\w*",
+                Integer(_) => r"-?(?:(?:0[box])\w+|[\d_]+)",
                 String(_) => r#"a^"#,
-                Identifier(_) => r"[a-zA-Z_]{1}\w+",
 
                 Eof => r"a^",
                 WhiteSpace => r"\s+",

@@ -32,10 +32,10 @@ mod test {
 
     #[rstest]
     #[case::trivial("hello_world", vec!["hello_world"])]
+    #[case::trivial("_12 a_1 __a _", vec!["_12", "a_1", "__a", "_"])]
     fn test_identifiers(#[case] input: &str, #[case] expected_names: Vec<&str>) {
         let mut expected = expected_names.iter().map(|name| Identifier(name.to_string())).collect::<Vec<Token>>();
         expected.push(Eof);
-        
         assert_tokenization(input, Ok(expected));
     }
 

@@ -69,7 +69,7 @@ pub fn tokenize<S: Into<String>>(input: S) -> crate::lexer::Result<Vec<Token>> {
                 lexer.remainder(),
                 lexer.position
             );
-            return Err(LexicalError::NoMatch(lexer.position));
+            return Err(LexicalError::NoMatch(lexer.position, lexer.tokens));
         }
     }
     lexer.tokens.push(Token::Eof);
