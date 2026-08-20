@@ -11,7 +11,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new<S: Into<String>>(input: S) -> Self {
+    pub fn new(input: impl Into<String>) -> Self {
         Self {
             input: input.into(),
             ..Default::default()
@@ -39,7 +39,7 @@ impl Lexer {
 
 /// Accepts a string as an input, and returns a vector of tokens, if the provided string has no lexical errors.
 /// Otherwise, returns a `LexicalError`
-pub fn tokenize<S: Into<String>>(input: S) -> crate::lexer::Result<Vec<Token>> {
+pub fn tokenize(input: impl Into<String>) -> crate::lexer::Result<Vec<Token>> {
     let mut lexer = Lexer::new(input);
     let patterns = crate::lexer::token::patterns::all();
     log::debug!("Entered lexing phase");
