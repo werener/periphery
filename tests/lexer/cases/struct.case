@@ -1,0 +1,32 @@
+struct Coords { 
+    x: int,
+    y: int,
+}
+fn get_point(point: Coords) {
+    return (point.x, point.y)
+}
+
+let coords = Coords {
+    x: 25,
+    y: 13,
+};
+let x, _ = coords.get_point()
+
+EXPECTED:
+[
+
+"Struct", {"Identifier": "Coords"}, "LeftCurly", 
+{"Identifier": "x"}, "Colon", "Int", "Comma", 
+{"Identifier": "y"}, "Colon", "Int", "Comma",
+"RightCurly",
+"Fn", {"Identifier": "get_point"}, "LeftParen", {"Identifier": "point"}, "Colon", {"Identifier": "Coords"}, "RightParen", "LeftCurly",
+"Return", "LeftParen", {"Identifier": "point"}, "Dot", {"Identifier": "x"}, "Comma", {"Identifier": "point"}, "Dot", {"Identifier": "y"}, "RightParen",
+"RightCurly",
+
+"Let", {"Identifier": "coords"}, "Assign", {"Identifier": "Coords"}, "LeftCurly",
+{"Identifier": "x"}, "Colon", {"Integer": 25}, "Comma",
+{"Identifier": "y"}, "Colon", {"Integer": 13}, "Comma",
+"RightCurly",  "Semicolon",
+"Let", {"Identifier": "x"}, "Comma", {"Identifier": "_"}, "Assign", {"Identifier": "coords"}, "Dot", {"Identifier": "get_point"}, "LeftParen", "RightParen"
+
+]

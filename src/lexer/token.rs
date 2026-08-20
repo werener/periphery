@@ -3,8 +3,8 @@
 /// The order, in which these variants are placed is the same order,
 /// in which the lexer tries to match them to their corresponding regex pattern.
 #[derive(Debug, Clone, PartialEq, strum_macros::EnumIter)]
+#[cfg_attr(test, derive(serde::Serialize, serde::Deserialize))]
 pub enum Token {
-    // Keywords
     Let,
     Const,
     Fn,
@@ -13,10 +13,13 @@ pub enum Token {
     Else,
     For,
     While,
+    Return,
 
+    Int,
+
+    Str(String),
     Identifier(String),
     Integer(i64),
-    String(String),
 
     /// spaces, \n, \t, \r, \f, \v
     WhiteSpace,
@@ -86,8 +89,99 @@ pub enum Token {
     Comma,
 }
 
-mod handlers {
+pub mod patterns {
 
+    use super::Token;
+    use crate::lexer::token::handlers::MatchHandler;
+    use regex::Regex;
+
+    #[fully_pub::fully_pub]
+    struct RegexPattern {
+        handler: Box<MatchHandler>,
+        regex: regex::Regex,
+    }
+
+    impl RegexPattern {
+        fn from_kind(kind: Token) -> Self {
+            RegexPattern {
+                handler: kind.clone().get_handler(),
+                regex: kind.get_regex(),
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn all() -> Vec<RegexPattern> {
+        use strum::IntoEnumIterator;
+        let patterns = Token::iter().map(RegexPattern::from_kind);
+
+        patterns.collect()
+    }
+
+    impl Token {
+        /// Lookup table for regex expressions, matching all tokens of this kind.
+        pub fn get_regex(self) -> Regex {
+            use Token::*;
+            let pattern = match self {
+                Str(_) => r#"a^"#,
+                Identifier(_) => r"[a-zA-Z_]\w*",
+                Integer(_) => r"-?(?:(?:0[box])\w+|[\d_]+)",
+
+                Eof => r"a^",
+                WhiteSpace => r"\s+",
+
+                Equals => r"==",
+                NotEquals => r"!=",
+                Less => r"<",
+                LessOrEquals => r"<=",
+                Greater => r">",
+                GreaterOrEquals => r">=",
+                Or => r"\|\|",
+                Not => r"!",
+                And => r"&&",
+
+                Plus => r"\+",
+                Minus => r"-",
+                Slash => r"/",
+                Asterisk => r"\*",
+                Percent => r"%",
+
+                HalfInterval => r"\.\.",
+                ClosedInterval => r"\.\.=",
+                Dot => r"\.",
+                Assign => r"=",
+
+                LeftBracket => r"\[",
+                RightBracket => r"\]",
+                LeftCurly => r"\{",
+                RightCurly => r"\}",
+                LeftParen => r"\(",
+                RightParen => r"\)",
+
+                Semicolon => r";",
+                Colon => r":",
+                Question => r"\?",
+                Comma => r",",
+
+                Let => r"\blet\b",
+                Const => r"\bconst\b",
+                Fn => r"\bfn\b",
+                Struct => r"\bstruct\b",
+                If => r"\bif\b",
+                Else => r"\belse\b",
+                For => r"\bfor\b",
+                While => r"\bwhile\b",
+                Return => r"\breturn\b",
+
+                Int => r"\bint\b",
+            };
+
+            Regex::new(pattern).expect(&format!("CANNOT COMPILE REGEX FOR {:?}", self))
+        }
+    }
+}
+
+mod handlers {
     use super::Token;
     use crate::{error::LexicalError::InvalidIntegerLiteral, lexer::lexer::Lexer};
 
@@ -169,95 +263,6 @@ mod handlers {
                 Identifier(_) => identifier_handler(),
                 _ => default_handler(self),
             }
-        }
-    }
-}
-
-pub mod patterns {
-
-    use super::Token;
-    use crate::lexer::token::handlers::MatchHandler;
-    use regex::Regex;
-
-    #[fully_pub::fully_pub]
-    struct RegexPattern {
-        handler: Box<MatchHandler>,
-        regex: regex::Regex,
-    }
-
-    impl RegexPattern {
-        fn from_kind(kind: Token) -> Self {
-            RegexPattern {
-                handler: kind.clone().get_handler(),
-                regex: kind.get_regex(),
-            }
-        }
-    }
-
-    #[inline]
-    pub(crate) fn all() -> Vec<RegexPattern> {
-        use strum::IntoEnumIterator;
-        let patterns = Token::iter().map(RegexPattern::from_kind);
-
-        patterns.collect()
-    }
-
-    impl Token {
-        /// Lookup table for regex expressions, matching all tokens of this kind.
-        pub fn get_regex(self) -> Regex {
-            use Token::*;
-            let pattern = match self {
-                Identifier(_) => r"[a-zA-Z_]{1}\w*",
-                Integer(_) => r"-?(?:(?:0[box])\w+|[\d_]+)",
-                String(_) => r#"a^"#,
-
-                Eof => r"a^",
-                WhiteSpace => r"\s+",
-
-                Equals => r"==",
-                NotEquals => r"!=",
-                Less => r"<",
-                LessOrEquals => r"<=",
-                Greater => r">",
-                GreaterOrEquals => r">=",
-                Or => r"\|\|",
-                Not => r"!",
-                And => r"&&",
-
-                Plus => r"\+",
-                Minus => r"-",
-                Slash => r"/",
-                Asterisk => r"\*",
-                Percent => r"%",
-
-                HalfInterval => r"\.\.",
-                ClosedInterval => r"\.\.=",
-                Dot => r"\.",
-                Assign => r"=",
-
-                LeftBracket => r"\[",
-                RightBracket => r"\]",
-                LeftCurly => r"\{",
-                RightCurly => r"\}",
-                LeftParen => r"\(",
-                RightParen => r"\)",
-
-                Semicolon => r";",
-                Colon => r":",
-                Question => r"\?",
-                Comma => r",",
-
-                Let => r"a^",
-                Const => r"a^",
-                Fn => r"a^",
-                Struct => r"a^",
-                If => r"a^",
-                Else => r"a^",
-                For => r"a^",
-                While => r"a^",
-            };
-
-            Regex::new(pattern).expect(&format!("CANNOT COMPILE REGEX FOR {:?}", self))
         }
     }
 }
