@@ -20,6 +20,7 @@ pub enum Token {
     Str(String),
     Identifier(String),
     Integer(i64),
+    Float(f64),
 
     /// spaces, \n, \t, \r, \f, \v
     WhiteSpace,
@@ -126,6 +127,7 @@ pub mod patterns {
                 Str(_) => r#"a^"#,
                 Identifier(_) => r"[a-zA-Z_]\w*",
                 Integer(_) => r"-?(?:(?:0[box])\w+|[\d_]+)",
+                Float(_) => r"a^", // TODO: add float regex
 
                 Eof => r"a^",
                 WhiteSpace => r"\s+",
@@ -243,6 +245,10 @@ mod handlers {
             lexer.consume(Token::Integer(num), matched);
             Ok(())
         })
+    }
+
+    fn float_handler() -> Box<MatchHandler> {
+        todo!()
     }
 
     fn identifier_handler() -> Box<MatchHandler> {

@@ -15,3 +15,15 @@ impl Debug for LexicalError {
         write!(f, "{}", self)
     }
 }
+
+#[derive(Error, PartialEq)]
+pub enum ParseError {
+    #[error("Placeholder: {0}")]
+    NoMatch(usize),
+}
+
+impl Debug for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
